@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phil-IRI Assessment Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+        .view-section { display: none; }
+        .view-section.active { display: block; }
+        .timer-active { color: #ef4444; border-color: #fca5a5; background-color: #fef2f2; box-shadow: 0 0 15px rgba(239, 68, 68, 0.3); }
+    </style>
+</head>
+<body class="text-gray-800 antialiased min-h-screen flex flex-col relative pb-20 md:pb-0">
+
+    <header class="bg-blue-800 text-white shadow-md sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="navigateTo('landingView')">
+                <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-blue-800">
+                    <i class="ph-bold ph-book-open-text text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight leading-tight">Phil-IRI Tool</h1>
+                    <p class="text-blue-200 text-xs font-medium">Reading Assessment</p>
+                </div>
+            </div>
+            <nav class="flex gap-4">
+                <button onclick="navigateTo('landingView')" class="hover:text-blue-200 font-medium transition-colors hidden md:block">Grades</button>
+                <button onclick="navigateTo('pendingView')" class="hover:text-blue-200 font-medium transition-colors flex items-center gap-1">
+                    Pending <span id="pendingCountBadge" class="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full hidden">0</span>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-grow w-full max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+
+        <div id="landingView" class="view-section active">
+            <div class="mb-8 relative z-30">
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <i class="ph-bold ph-magnifying-glass text-gray-400 text-xl"></i>
+                    </div>
+                    <input type="text" id="globalSearchInput" oninput="handleGlobalSearch(this.value)" class="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-2 focus:border-blue-500 focus:ring-blue-500 outline-none text-lg font-medium text-gray-800 placeholder-gray-400 transition-all" placeholder="Search any student across all grades...">
+                </div>
+                <ul id="globalSearchResults" class="absolute w-full bg-white border border-gray-100 shadow-2xl rounded-2xl mt-2 hidden max-h-60 overflow-y-auto divide-y divide-gray-50 z-50">
+                </ul>
+            </div>
+
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Grade Levels</h2>
+                    <p class="text-gray-500 text-sm mt-1">Select a grade to view students or add a new one.</p>
+                </div>
+                <button onclick="openAddGradeModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-semibold transition-all shadow-md flex items-center gap-2">
+                    <i class="ph-bold ph-plus"></i> Add Grade
+                </button>
+            </div>
+
+            <div id="gradesGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-10">
+                <div class="col-span-full text-center py-10 text-gray-500" id="loadingGrades">
+                    <p class="font-bold text-lg"><i class="ph-bold ph-spinner animate-spin inline-block"></i> Loading grades...</p>
+                </div>
+            </div>
+
+            <div class="text-right mt-16 pb-4">
+                <button onclick="openAdminModal()" class="text-gray-300 hover:text-gray-500 text-xs font-medium transition-colors">Admin Tools</button>
+            </div>
+        </div>
+
+        <div id="gradeView" class="view-section">
+            <div class="mb-6">
+                <button onclick="navigateTo('landingView')" class="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 mb-4">
+                    <i class="ph-bold ph-arrow-left"></i> Back to Grades
+                </button>
+                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800" id="gradeViewTitle">Grade X Students</h2>
+                        <p class="text-gray-500 text-sm mt-1">Select a student to view profile and assess.</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="openPdfModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-semibold transition-all shadow-md flex items-center gap-2">
+                            <i class="ph-bold ph-file-pdf"></i> Download PDF
+                        </button>
+                        <button onclick="goToEnrollment()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl font-semibold transition-all shadow-md flex items-center gap-2">
+                            <i class="ph-bold ph-user-plus"></i> Enroll Students
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-blue-50/50 rounded-2xl border border-blue-100 p-4 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h3 class="font-bold text-blue-900 flex items-center gap-2"><i class="ph-fill ph-calendar-star text-blue-600"></i> Today's Assessment Settings</h3>
+                    <p class="text-sm text-blue-700 mt-1" id="dailySettingsDisplay">Word Count: <span class="font-bold">Not set</span> &nbsp;|&nbsp; Comp Questions: <span class="font-bold">Not set</span></p>
+                </div>
+                <button onclick="openDailySettingsModal()" class="bg-white border border-blue-200 text-blue-700 hover:bg-blue-50 px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-colors w-full sm:w-auto">
+                    Set Defaults
+                </button>
+            </div>
+
+            <div class="mb-4 relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="ph-bold ph-magnifying-glass text-gray-400"></i>
+                </div>
+                <input type="text" id="localStudentSearch" oninput="renderStudents()" class="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl shadow-sm focus:border-blue-500 focus:ring-blue-500 outline-none font-medium" placeholder="Search student in this grade...">
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <ul id="studentsList" class="divide-y divide-gray-100">
+                    <li class="p-12 text-center text-gray-500 font-medium text-lg" id="loadingStudents">
+                        <i class="ph-bold ph-spinner animate-spin inline-block"></i> Loading students...
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="enrollmentView" class="view-section">
+             <div class="mb-6">
+                <button onclick="navigateTo('gradeView')" class="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 mb-4">
+                    <i class="ph-bold ph-arrow-left"></i> Back to Grade
+                </button>
+                <h2 class="text-2xl font-bold text-gray-800">Bulk Enroll Students</h2>
+                <p class="text-gray-500 text-sm mt-1" id="enrollmentGradeLabel">Enrolling to Grade X</p>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <div id="enrollmentForms" class="space-y-4">
+                    <div class="flex gap-3 items-center student-input-row">
+                        <span class="font-bold text-gray-400 w-6">1.</span>
+                        <input type="text" class="student-name-input flex-grow border-gray-300 rounded-xl shadow-sm focus:border-blue-500 focus:ring-blue-500 py-3 px-4 bg-gray-50 border outline-none" placeholder="Student Full Name">
+                        <button onclick="removeEnrollmentRow(this)" class="text-red-500 hover:text-red-700 p-2 invisible">
+                            <i class="ph-bold ph-trash text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-between items-center border-t pt-6">
+                    <button onclick="addEnrollmentRow()" class="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1">
+                        <i class="ph-bold ph-plus-circle text-xl"></i> Add another row
+                    </button>
+
+                    <button onclick="submitBulkEnrollment()" id="bulkEnrollBtn" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-md flex items-center gap-2">
+                        <i class="ph-bold ph-check-circle"></i> Save All Students
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="studentProfileView" class="view-section">
+            <div class="mb-6">
+                <button onclick="navigateTo('gradeView')" class="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 mb-4">
+                    <i class="ph-bold ph-arrow-left"></i> Back to Grade
+                </button>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 mb-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-3 mb-1">
+                            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                                <i class="ph-bold ph-user text-2xl"></i>
+                            </div>
+                            <h2 class="text-2xl sm:text-3xl font-bold text-gray-800" id="profileStudentName">Student Name</h2>
+                        </div>
+                        <p class="text-gray-500 ml-15" id="profileGradeLevel">Grade X</p>
+                    </div>
+
+                    <button onclick="startAssessment()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg flex items-center gap-2 w-full sm:w-auto justify-center text-lg">
+                        <i class="ph-fill ph-play-circle text-xl"></i> Start Assessment
+                    </button>
+                </div>
+
+                <div class="mt-8 border-t border-gray-100 pt-8">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <i class="ph-bold ph-clock-counter-clockwise text-blue-600"></i> Assessment History
+                    </h3>
+                    <div id="profileHistoryCards" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="col-span-full text-center py-6 text-gray-400 text-sm">
+                            <p class="mt-4"><i class="ph-bold ph-spinner animate-spin"></i> Loading history...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="readingTestView" class="view-section">
+            <div class="mb-6 flex justify-between items-center">
+                <button onclick="navigateTo('studentProfileView')" class="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
+                    <i class="ph-bold ph-arrow-left"></i> Cancel Assessment
+                </button>
+                <div class="text-right">
+                    <p class="font-bold text-gray-800" id="testStudentName">Student Name</p>
+                    <p class="text-xs text-gray-500" id="testHeaderTitle">Reading Passage</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+                <div class="bg-gray-50 p-4 sm:p-6 border-b border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Timing Method</label>
+                        <select id="timingMethod" class="w-full border-gray-300 rounded-xl shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2.5 px-4 bg-white border outline-none font-medium" onchange="toggleTimingMethod(); saveState();">
+                            <option value="stopwatch">Use Built-in Stopwatch</option>
+                            <option value="manual">Enter Time Manually</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Miscue Method</label>
+                        <select id="miscueMethod" class="w-full border-gray-300 rounded-xl shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2.5 px-4 bg-white border outline-none font-medium" onchange="toggleMiscueMethod(); saveState();">
+                            <option value="clicker">Use Live Clicker</option>
+                            <option value="manual">Skip Clicker (Encode later)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="p-6 sm:p-10 flex flex-col items-center">
+                    <div id="stopwatchSection" class="w-full flex flex-col items-center">
+                        <div id="timerDisplay" class="text-6xl sm:text-7xl font-bold text-gray-800 my-6 font-mono border-4 border-gray-100 rounded-2xl p-6 w-full max-w-sm text-center transition-all duration-300">
+                            00:00
+                        </div>
+                        <div class="flex gap-4">
+                            <button id="startTimerBtn" onclick="toggleTimer()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-xl shadow-md transition-colors flex items-center gap-2 text-lg">
+                                <i class="ph-fill ph-play"></i> Start Reading
+                            </button>
+                            <button onclick="resetTimer()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-5 rounded-xl shadow-sm transition-colors">
+                                <i class="ph-bold ph-arrow-counter-clockwise text-xl"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="manualTimeSection" class="w-full max-w-sm hidden my-6">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2 text-center">Reading Time (in seconds)</label>
+                        <div class="relative">
+                            <input type="number" id="manualTimeInput" oninput="saveState()" class="w-full border-2 border-gray-300 rounded-2xl text-center text-4xl font-bold py-4 focus:border-blue-500 focus:ring-blue-500 outline-none text-gray-800" placeholder="0">
+                            <span class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 font-bold">sec</span>
+                        </div>
+                    </div>
+
+                    <div class="w-full border-t border-gray-100 my-8"></div>
+
+                    <div id="clickerSection" class="w-full flex flex-col items-center">
+                        <p class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Miscue Counter</p>
+                        <div class="flex items-center justify-center gap-6 sm:gap-10">
+                            <button onclick="removeMiscue()" class="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center hover:bg-red-200 transition-colors shadow-sm active:scale-95">
+                                <i class="ph-bold ph-minus text-2xl sm:text-3xl"></i>
+                            </button>
+
+                            <div class="flex flex-col items-center transition-transform duration-150">
+                                <span id="miscueDisplay" class="text-7xl sm:text-8xl font-black text-gray-800 tabular-nums tracking-tighter">0</span>
+                                <span class="text-sm font-bold text-gray-400 mt-1">Errors</span>
+                            </div>
+
+                            <button onclick="addMiscue()" class="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg shadow-red-500/30 active:scale-95">
+                                <i class="ph-bold ph-plus text-4xl sm:text-5xl"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="clickerHiddenMsg" class="w-full text-center hidden my-8">
+                        <div class="inline-flex items-center gap-2 bg-yellow-50 text-yellow-800 px-4 py-2 rounded-lg text-sm font-medium border border-yellow-200">
+                            <i class="ph-fill ph-warning-circle"></i> Miscue clicker hidden. You will encode errors later.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 p-6 border-t border-gray-200">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2 text-center">Passage Word Count</label>
+                    <input type="number" id="testWordCount" oninput="saveState()" class="w-full max-w-xs mx-auto block border-gray-300 rounded-xl shadow-sm focus:border-blue-500 focus:ring-blue-500 py-3 px-4 bg-white border outline-none font-bold text-center" placeholder="e.g. 150">
+
+                    <div class="mt-6 flex justify-center">
+                        <button onclick="finishReadingPart()" class="bg-blue-800 hover:bg-blue-900 text-white px-8 py-4 rounded-xl font-bold transition-all shadow-xl flex items-center gap-2 text-lg w-full max-w-xs justify-center">
+                            Finish Reading <i class="ph-bold ph-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="pendingView" class="view-section">
+             <div class="mb-6">
+                <button onclick="navigateTo('landingView')" class="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 mb-4 hidden md:flex">
+                    <i class="ph-bold ph-arrow-left"></i> Home
+                </button>
+                <h2 class="text-2xl font-bold text-gray-800">Pending Assessments</h2>
+                <p class="text-gray-500 text-sm mt-1">Assessments safely backed up, waiting for encoding or scoring.</p>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <ul id="pendingList" class="divide-y divide-gray-100">
+                    <li class="p-8 text-center text-gray-500" id="emptyPendingMsg">
+                        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400">
+                            <i class="ph-bold ph-check-circle text-3xl"></i>
+                        </div>
+                        <p class="font-medium text-gray-600">All caught up!</p>
+                        <p class="text-sm mt-1">No pending assessments.</p>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="miscueBreakdownView" class="view-section">
+            <div class="mb-6 flex justify-between items-center">
+                <button onclick="navigateTo('pendingView')" class="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
+                    <i class="ph-bold ph-arrow-left"></i> Back to Queue
+                </button>
+                <div class="text-right">
+                    <p class="font-bold text-gray-800" id="mbStudentName">Student Name</p>
+                    <p class="text-xs text-gray-500">Miscue Breakdown</p>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 max-w-3xl mx-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-800">Categorize Errors</h3>
+                        <p class="text-gray-500 text-sm">Specify the type of miscues observed.</p>
+                    </div>
+                    <div class="text-sm font-bold px-3 py-1.5 rounded-lg flex gap-2 items-center bg-gray-100 text-gray-600 border border-gray-200">
+                        Total Recorded: <span id="mbTotalRecorded" class="text-lg">0</span> / <span id="mbTargetTotal" class="text-lg">0</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8" id="miscueCountersContainer">
+                </div>
+
+                <div class="flex flex-col-reverse sm:flex-row justify-between gap-4 mt-8 pt-6 border-t border-gray-100">
+                    <button onclick="skipMiscueBreakdown()" class="px-6 py-4 text-gray-600 hover:bg-gray-100 rounded-xl font-bold transition-colors w-full sm:w-auto text-lg text-center">
+                        Skip & Continue
+                    </button>
+                    <button onclick="saveMiscueBreakdown()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold transition-all shadow-md flex items-center justify-center gap-2 w-full sm:w-auto text-lg">
+                        Next: Encode Words <i class="ph-bold ph-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="wordsEncodingView" class="view-section">
+             <div class="mb-6 flex justify-between items-center">
+                <button onclick="navigateTo('pendingView')" class="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
+                    <i class="ph-bold ph-arrow-left"></i> Back to Queue
+                </button>
+                <div class="text-right">
+                    <p class="font-bold text-gray-800" id="wordsStudentName">Student Name</p>
+                    <p class="text-xs text-gray-500">Miscue Encoding</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 max-w-3xl mx-auto">
+                <h3 class="text-xl font-bold mb-2">Encode Incorrect Words</h3>
+                <p class="text-gray-500 text-sm mb-6">Type the exact words the student misread. Press Enter to add.</p>
+
+                <div class="flex gap-2 mb-6 relative">
+                    <div class="flex-grow relative">
+                        <input type="text" id="wordInput" autocomplete="off" class="w-full border-2 border-gray-300 rounded-xl shadow-sm focus:border-blue-500 focus:ring-blue-500 py-3 px-4 outline-none font-medium text-lg" placeholder="e.g. through" onkeypress="if(event.key === 'Enter') addWord()" oninput="handleWordSearch(this.value); saveState();">
+                        <ul id="autocompleteList" class="absolute z-10 w-full bg-white border border-gray-200 shadow-xl rounded-lg mt-1 hidden max-h-48 overflow-y-auto top-full">
+                        </ul>
+                    </div>
+                    <button onclick="addWord()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md flex items-center shrink-0">
+                        <i class="ph-bold ph-plus text-xl"></i>
+                    </button>
+                </div>
+
+                <div class="bg-gray-50 rounded-xl p-4 border border-gray-200 min-h-[150px]">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-sm font-bold text-gray-500 uppercase tracking-wide">Recorded Words</span>
+                        <span class="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded-md" id="wordsTotalBadge">Total: 0</span>
+                    </div>
+                    <div id="wordsTagsContainer" class="flex flex-wrap gap-2">
+                    </div>
+                </div>
+
+                <div class="mt-8 flex justify-end">
+                    <button onclick="proceedToComprehension()" class="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-xl font-bold transition-all shadow-xl flex items-center justify-center gap-2 text-lg w-full sm:w-auto">
+                        Next: Comprehension <i class="ph-bold ph-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="comprehensionView" class="view-section">
+             <div class="mb-6 flex justify-between items-center">
+                <button onclick="navigateTo('wordsEncodingView')" class="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
+                    <i class="ph-bold ph-arrow-left"></i> Back to Words
+                </button>
+                <div class="text-right">
+                    <p class="font-bold text-gray-800" id="compStudentName">Student Name</p>
+                    <p class="text-xs text-gray-500">Comprehension</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 max-w-lg mx-auto">
+                <h3 class="text-xl font-bold mb-2 text-center">Comprehension Score</h3>
+                <p class="text-gray-500 text-sm mb-8 text-center">Enter the test results.</p>
+
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Total Questions</label>
+                        <input type="number" id="compTotal" oninput="saveState()" class="w-full border-2 border-gray-300 rounded-xl shadow-sm focus:border-blue-500 focus:ring-blue-500 py-4 px-4 bg-white outline-none font-bold text-2xl text-center" placeholder="e.g. 7">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Correct Answers</label>
+                        <input type="number" id="compCorrect" oninput="saveState()" class="w-full border-2 border-green-300 rounded-xl shadow-sm focus:border-green-500 focus:ring-green-500 py-4 px-4 bg-green-50 outline-none font-bold text-2xl text-center text-green-800" placeholder="e.g. 5">
+                    </div>
+                </div>
+
+                <div class="mt-10">
+                    <button onclick="calculateFinalResults()" id="calcResultsBtn" class="bg-blue-800 hover:bg-blue-900 w-full text-white px-8 py-4 rounded-xl font-bold transition-all shadow-xl flex justify-center items-center gap-2 text-lg">
+                        Calculate Final Result <i class="ph-bold ph-calculator"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="resultsView" class="view-section">
+            <div class="bg-gray-900 rounded-3xl shadow-2xl p-6 sm:p-10 text-white relative overflow-hidden max-w-3xl mx-auto">
+                <div class="absolute -right-10 -top-10 w-40 h-40 bg-blue-500 rounded-full blur-3xl opacity-20"></div>
+                <div class="absolute -left-10 -bottom-10 w-40 h-40 bg-green-500 rounded-full blur-3xl opacity-20"></div>
+
+                <div class="text-center relative z-10 mb-8 pb-8 border-b border-gray-700">
+                    <p class="text-gray-400 font-semibold mb-1 uppercase tracking-widest text-sm" id="resHeaderTag">Assessment Complete</p>
+                    <h2 class="text-3xl sm:text-4xl font-black" id="resStudentName">Student Name</h2>
+                    <p class="text-gray-400 mt-2" id="resGrade">Grade X</p>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 relative z-10 mb-8">
+                    <div class="bg-gray-800/80 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border border-gray-700 text-center">
+                        <div class="w-10 h-10 mx-auto bg-gray-700 rounded-full flex items-center justify-center text-gray-300 mb-3"><i class="ph-bold ph-timer text-xl"></i></div>
+                        <p class="text-gray-400 text-xs sm:text-sm font-bold uppercase tracking-wider mb-1">Rate (WPM)</p>
+                        <p class="text-2xl sm:text-3xl font-black" id="resWpm">0.0</p>
+                    </div>
+
+                    <div class="bg-gray-800/80 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border border-gray-700 text-center">
+                        <div class="w-10 h-10 mx-auto bg-gray-700 rounded-full flex items-center justify-center text-gray-300 mb-3"><i class="ph-bold ph-book-open text-xl"></i></div>
+                        <p class="text-gray-400 text-xs sm:text-sm font-bold uppercase tracking-wider mb-1">Words</p>
+                        <p class="text-2xl sm:text-3xl font-black text-gray-100"><span id="resWordScore">0</span><span class="text-lg sm:text-xl text-gray-500">%</span></p>
+                        <div id="resWordLabel" class="inline-block px-2 py-1 rounded-md text-[10px] font-bold uppercase mt-2 text-center">Level</div>
+                    </div>
+
+                    <div class="bg-gray-800/80 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border border-gray-700 text-center">
+                        <div class="w-10 h-10 mx-auto bg-gray-700 rounded-full flex items-center justify-center text-gray-300 mb-3"><i class="ph-bold ph-brain text-xl"></i></div>
+                        <p class="text-gray-400 text-xs sm:text-sm font-bold uppercase tracking-wider mb-1">Comp</p>
+                        <p class="text-2xl sm:text-3xl font-black text-gray-100"><span id="resCompScore">0</span><span class="text-lg sm:text-xl text-gray-500">%</span></p>
+                        <div id="resCompLabel" class="inline-block px-2 py-1 rounded-md text-[10px] font-bold uppercase mt-2 text-center">Level</div>
+                    </div>
+
+                    <div class="bg-blue-900/50 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border border-blue-500/30 text-center col-span-2 md:col-span-1 flex flex-col justify-center">
+                        <p class="text-blue-300 text-xs sm:text-sm font-bold uppercase tracking-wider mb-2">Overall Profile</p>
+                        <p class="text-2xl sm:text-2xl font-black text-white leading-tight" id="resOverall">Profile</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-4 justify-center relative z-10">
+                    <button onclick="saveFinalToSheet()" id="saveFinalBtn" class="bg-green-500 hover:bg-green-600 text-gray-900 font-bold py-4 px-8 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-lg flex-1">
+                        <i class="ph-bold ph-floppy-disk"></i> Save to Database
+                    </button>
+                    <button onclick="discardResult()" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-4 px-8 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 flex-1">
+                        Discard
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="dailySettingsModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+            <h3 class="text-xl font-bold mb-1">Daily Defaults</h3>
+            <p class="text-sm text-gray-500 mb-6 font-medium" id="dailyGradeLevelText">Grade X</p>
+            <p class="text-xs text-gray-400 bg-gray-50 p-2 rounded-lg mb-4">These values will pre-fill for all students in this grade today.</p>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Passage Word Count</label>
+                    <input type="number" id="dailyWordCount" class="w-full p-3 border border-gray-200 rounded-xl bg-white focus:bg-white transition-colors outline-none focus:border-blue-500 font-bold text-lg" placeholder="e.g. 150">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Total Comprehension Questions</label>
+                    <input type="number" id="dailyCompTotal" class="w-full p-3 border border-gray-200 rounded-xl bg-white focus:bg-white transition-colors outline-none focus:border-blue-500 font-bold text-lg" placeholder="e.g. 7">
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6">
+                <button onclick="closeDailySettingsModal()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors font-medium">Cancel</button>
+                <button onclick="confirmDailySettings()" id="saveDailyBtn" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors font-bold flex items-center gap-2 shadow-sm">
+                    Save Settings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="addGradeModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+            <h3 class="text-xl font-bold mb-4">Add New Grade Level</h3>
+            <p class="text-sm text-gray-500 mb-4">Select a grade level to create a new tracking sheet.</p>
+            <select id="newGradeSelect" class="w-full p-3 border border-gray-200 rounded-xl mb-4 bg-gray-50 focus:bg-white transition-colors outline-none focus:border-blue-500"></select>
+            <div class="flex justify-end gap-3">
+                <button onclick="closeAddGradeModal()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors font-medium">Cancel</button>
+                <button onclick="submitNewGrade()" id="submitGradeBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors font-medium flex items-center gap-2">
+                    <i class="ph-bold ph-plus"></i> Add Grade
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="adminModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm" id="adminLoginSection">
+            <h3 class="text-xl font-bold mb-2 flex items-center gap-2 text-red-600">
+                <i class="ph-bold ph-lock-key"></i> Admin Access
+            </h3>
+            <p class="text-gray-500 text-sm mb-4">Enter password to access dangerous actions.</p>
+            <div class="mb-4">
+                <input type="password" id="adminPassword" class="w-full border-gray-300 rounded-xl shadow-sm focus:border-red-500 focus:ring-red-500 py-3 px-4 bg-gray-50 border outline-none" placeholder="Password">
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button onclick="closeAdminModal()" class="px-4 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition-colors">Cancel</button>
+                <button onclick="verifyAdmin()" class="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl font-semibold transition-all shadow-md">
+                    Login
+                </button>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md hidden" id="adminToolsSection">
+            <h3 class="text-xl font-bold mb-2 flex items-center gap-2 text-red-600">
+                <i class="ph-bold ph-warning"></i> System Reset
+            </h3>
+            <div class="bg-red-50 text-red-800 p-4 rounded-xl text-sm font-medium border border-red-200 mb-6">
+                <strong>Warning:</strong> Wipes all records. Type password again to confirm.
+            </div>
+            <div class="flex justify-end gap-3">
+                <button onclick="closeAdminModal()" class="px-4 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition-colors">Cancel</button>
+                <button onclick="executeSystemReset()" id="executeResetBtn" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-xl font-bold transition-all shadow-md flex items-center gap-2">
+                    Wipe Database
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="pdfModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm">
+            <h3 class="text-xl font-bold mb-2 flex items-center gap-2 text-indigo-700">
+                <i class="ph-bold ph-file-pdf"></i> Generate PDF Report
+            </h3>
+            <p class="text-gray-500 text-sm mb-4" id="pdfModalSubtitle">Grade X Report</p>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Start Date</label>
+                    <input type="date" id="pdfStartDate" class="w-full border border-gray-300 rounded-xl shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2.5 px-4 bg-gray-50 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">End Date</label>
+                    <input type="date" id="pdfEndDate" class="w-full border border-gray-300 rounded-xl shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2.5 px-4 bg-gray-50 outline-none">
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button onclick="closePdfModal()" class="px-4 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition-colors">Cancel</button>
+                <button onclick="generatePDF()" id="generatePdfBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl font-semibold transition-all shadow-md flex items-center gap-2">
+                    Download
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="alertModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div id="alertBox" class="bg-white rounded-3xl shadow-2xl p-8 sm:p-10 w-full max-w-md text-center transform transition-all duration-300 scale-95">
+            <div id="alertIcon" class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-5 text-blue-500">
+                <i class="ph-bold ph-info text-4xl"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-gray-800 mb-3" id="alertTitle">Notice</h3>
+            <p class="text-gray-600 mb-8 text-lg" id="alertMessage">Message goes here.</p>
+            <button onclick="closeAlert()" class="w-full bg-gray-900 hover:bg-black text-white font-bold py-4 rounded-xl transition-colors text-lg">
+                Got it
+            </button>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-6 left-4 right-4 md:left-auto md:right-6 md:max-w-sm mx-auto bg-green-500 text-white px-6 py-4 rounded-xl shadow-2xl transform translate-y-24 opacity-0 transition-all duration-300 flex items-center justify-center md:justify-start gap-3 z-50 font-bold">
+        <i class="ph-bold ph-check-circle text-2xl"></i>
+        <span id="toastMsg">Action successful!</span>
+    </div>
+
+    <script>
+        const MISCUE_TYPES = [
+            { id: 'mispronunciation', label: 'Mispronunciation', sub: 'Maling Bigkas' },
+            { id: 'omission', label: 'Omission', sub: 'Pagkakaltas' },
+            { id: 'substitution', label: 'Substitution', sub: 'Pagpapalit' },
+            { id: 'insertion', label: 'Insertion', sub: 'Pagsisingit' },
+            { id: 'repetition', label: 'Repetition', sub: 'Pag-uulit' },
+            { id: 'transposition', label: 'Transposition', sub: 'Pagpapalit Lugar' },
+            { id: 'reversal', label: 'Reversal', sub: 'Paglilipat' }
+        ];
+
+        const state = {
+            grades: [], students: [], pendingAssessments: [],
+            dailySettings: { wordCount: '', compTotal: '' }, currentGrade: null, currentStudent: null, pendingStudentRedirect: null, 
+            activeAssessment: {
+                id: null, studentName: null, gradeLevel: null, wordCount: 0, timeInSeconds: 0, miscueCount: 0, incorrectWords: [], compTotal: 0, compCorrect: 0,
+                miscueBreakdown: null, wordReadingProfile: null, comprehensionProfile: null, finalProfile: null, originalFingerprint: null 
+            }
+        };
+
+        let currentStudentHistoryData = []; let timerInterval; let isRunning = false; let timeElapsed = 0; let miscueCount = 0;
+
+        function escapeHtml(unsafe) {
+            if(!unsafe) return "";
+            return unsafe.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        // Bulletproof Google Script Runner
+        function runGoogleScript(funcName, args = [], onSuccess, onFail) {
+            if (typeof google !== 'undefined' && google.script) {
+                let isFinished = false;
+                try {
+                    let runner = google.script.run
+                        .withSuccessHandler((res) => {
+                            if (!isFinished) { isFinished = true; if (onSuccess) onSuccess(res); }
+                        })
+                        .withFailureHandler((e) => {
+                            if (!isFinished) {
+                                isFinished = true;
+                                let msg = e.message || e.toString();
+                                if (msg.includes('not a function')) msg = "Deployment Error: App out of sync. Please click Deploy -> New deployment.";
+                                if (onFail) onFail(new Error(msg)); else showAlert("Error: " + msg);
+                            }
+                        });
+
+                    if (args.length === 0) runner[funcName]();
+                    else if (args.length === 1) runner[funcName](args[0]);
+                    else if (args.length === 2) runner[funcName](args[0], args[1]);
+                    else if (args.length === 3) runner[funcName](args[0], args[1], args[2]);
+                    else {
+                        isFinished = true;
+                        if(onFail) onFail(new Error("Internal Error: Too many arguments for " + funcName));
+                        else showAlert("Internal Error: Too many arguments for " + funcName);
+                    }
+                } catch (e) {
+                    if (!isFinished) {
+                        isFinished = true;
+                        let msg = e.message || e.toString();
+                        if (onFail) onFail(new Error(msg)); else showAlert("Error: " + msg);
+                    }
+                }
+            } else {
+                console.log(`Mocking ${funcName}...`);
+                setTimeout(() => { if (onSuccess) onSuccess(); }, 500);
+            }
+        }
+
+        function saveState() {
+            var tmVal = document.getElementById('timingMethod') ? document.getElementById('timingMethod').value : 'stopwatch';
+            var mmVal = document.getElementById('miscueMethod') ? document.getElementById('miscueMethod').value : 'clicker';
+            var twcVal = document.getElementById('testWordCount') ? document.getElementById('testWordCount').value : '';
+            var ctVal = document.getElementById('compTotal') ? document.getElementById('compTotal').value : '';
+            var ccVal = document.getElementById('compCorrect') ? document.getElementById('compCorrect').value : '';
+            var wiVal = document.getElementById('wordInput') ? document.getElementById('wordInput').value : '';
+            var mtiVal = document.getElementById('manualTimeInput') ? document.getElementById('manualTimeInput').value : '';
+
+            sessionStorage.setItem('philIriState', JSON.stringify({
+                ...state, timerElapsed: timeElapsed, timerMiscueCount: miscueCount, timerIsRunning: isRunning,
+                timingMethod: tmVal,
+                miscueMethod: mmVal,
+                testWordCountInput: twcVal,
+                compTotalInput: ctVal,
+                compCorrectInput: ccVal,
+                wordInputVal: wiVal,
+                manualTimeInputVal: mtiVal
+            }));
+        }
+
+        function restoreState() {
+            const saved = sessionStorage.getItem('philIriState');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved); Object.assign(state, parsed);
+                    timeElapsed = parsed.timerElapsed || 0; miscueCount = parsed.timerMiscueCount || 0;
+                } catch(e) {}
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            restoreState();
+            const hash = window.location.hash.substring(1) || 'landingView';
+            if(document.getElementById(hash)) navigateTo(hash, true); 
+            else navigateTo('landingView', true);
+            setInterval(saveState, 2000);
+        });
+
+        function navigateTo(viewId, isHashChange = false) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+            
+            if (!isHashChange) window.location.hash = viewId;
+            window.scrollTo(0, 0);
+            restoreViewDOM(viewId); saveState();
+
+            if (viewId === 'landingView') fetchGrades();
+            if (viewId === 'pendingView') renderPending();
+        }
+
+        function restoreViewDOM(viewId) {
+            const saved = JSON.parse(sessionStorage.getItem('philIriState') || '{}');
+            
+            if (viewId === 'gradeView' && state.currentGrade) {
+                document.getElementById('gradeViewTitle').innerText = `Grade ${state.currentGrade} Students`;
+                if(state.students.length > 0) renderStudents();
+                else document.getElementById('studentsList').innerHTML = `<li class="p-12 text-center text-gray-500 font-bold"><i class="ph-bold ph-spinner animate-spin inline-block"></i> Loading students...</li>`;
+                
+                runGoogleScript('getGradeData', [state.currentGrade], (data) => {
+                    state.students = data.students || []; state.dailySettings = data.settings || { wordCount: '', compTotal: '' };
+                    renderSettingsDisplay(); renderStudents();
+                }, (err) => { 
+                    let msg = err.message || err.toString();
+                    if(state.students.length === 0) document.getElementById('studentsList').innerHTML = `<li class="p-12 text-center text-red-500 font-bold bg-red-50"><p>Error loading students: ${msg}</p><button onclick="openGrade('${state.currentGrade}')" class="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg">Retry</button></li>`; 
+                });
+            }
+            
+            if (viewId === 'studentProfileView' && state.currentStudent) {
+                document.getElementById('profileStudentName').innerText = state.currentStudent;
+                document.getElementById('profileGradeLevel').innerText = `Grade ${state.currentGrade}`;
+                if(document.getElementById('profileHistoryCards').innerText.includes('Loading')) openStudentProfile(state.currentStudent);
+            }
+            
+            if (viewId === 'readingTestView' && state.activeAssessment && state.activeAssessment.studentName) {
+                document.getElementById('testStudentName').innerText = state.activeAssessment.studentName;
+                document.getElementById('testWordCount').value = saved.testWordCountInput || state.activeAssessment.wordCount || state.dailySettings.wordCount || '';
+                document.getElementById('manualTimeInput').value = saved.manualTimeInputVal || state.activeAssessment.timeInSeconds || '';
+                document.getElementById('timingMethod').value = saved.timingMethod || 'stopwatch';
+                document.getElementById('miscueMethod').value = saved.miscueMethod || 'clicker';
+                
+                if (state.activeAssessment.originalFingerprint) document.getElementById('testHeaderTitle').innerHTML = '<span class="bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded font-bold">Editing Record</span>';
+                else document.getElementById('testHeaderTitle').innerText = 'Reading Passage';
+
+                toggleTimingMethod(); toggleMiscueMethod(); updateTimerUI();
+                document.getElementById('miscueDisplay').innerText = miscueCount;
+                if (saved.timerIsRunning && !isRunning) toggleTimer(); 
+            }
+
+            if (viewId === 'miscueBreakdownView' && state.activeAssessment && state.activeAssessment.studentName) renderMiscueBreakdown();
+            if (viewId === 'wordsEncodingView' && state.activeAssessment && state.activeAssessment.studentName) {
+                document.getElementById('wordsStudentName').innerText = state.activeAssessment.studentName;
+                document.getElementById('wordInput').value = saved.wordInputVal || ''; renderWordTags();
+            }
+            if (viewId === 'comprehensionView' && state.activeAssessment && state.activeAssessment.studentName) {
+                document.getElementById('compStudentName').innerText = state.activeAssessment.studentName;
+                document.getElementById('compTotal').value = saved.compTotalInput || state.activeAssessment.compTotal || state.dailySettings.compTotal || '';
+                document.getElementById('compCorrect').value = saved.compCorrectInput || state.activeAssessment.compCorrect || '';
+            }
+            if (viewId === 'resultsView' && state.activeAssessment && state.activeAssessment.studentName) {
+                if(state.activeAssessment.compTotal > 0 && state.activeAssessment.timeInSeconds > 0) {
+                     document.getElementById('compTotal').value = state.activeAssessment.compTotal;
+                     document.getElementById('compCorrect').value = state.activeAssessment.compCorrect;
+                     calculateFinalResults(true); 
+                }
+            }
+        }
+
+        window.addEventListener('hashchange', () => {
+            const hash = window.location.hash.substring(1) || 'landingView';
+            navigateTo(hash, true); 
+        });
+
+        function showAlert(msg, isError = true) {
+            document.getElementById('alertMessage').innerText = msg; document.getElementById('alertTitle').innerText = isError ? "Oops!" : "Notice";
+            const icon = document.getElementById('alertIcon');
+            icon.className = isError ? 'w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5 text-red-500' : 'w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-5 text-blue-500';
+            icon.innerHTML = isError ? '<i class="ph-bold ph-warning text-4xl"></i>' : '<i class="ph-bold ph-info text-4xl"></i>';
+            document.getElementById('alertModal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('alertBox').classList.replace('scale-95', 'scale-100'), 10);
+        }
+        function closeAlert() { document.getElementById('alertBox').classList.replace('scale-100', 'scale-95'); setTimeout(() => document.getElementById('alertModal').classList.add('hidden'), 200); }
+        function showToast(msg) { document.getElementById('toastMsg').innerText = msg; const toast = document.getElementById('toast'); toast.classList.remove('translate-y-24', 'opacity-0'); setTimeout(() => toast.classList.add('translate-y-24', 'opacity-0'), 3000); }
+
+        let globalSearchDebounce;
+        function handleGlobalSearch(query) {
+            const list = document.getElementById('globalSearchResults'); query = query.trim();
+            if(query.length < 2) { list.classList.add('hidden'); return; }
+            clearTimeout(globalSearchDebounce);
+            globalSearchDebounce = setTimeout(() => {
+                list.innerHTML = `<li class="p-4 text-center text-gray-400"><i class="ph-bold ph-spinner animate-spin inline-block"></i> Searching...</li>`; list.classList.remove('hidden');
+                runGoogleScript('searchAllStudents', [query], (results) => {
+                    if(!results || results.length === 0) return list.innerHTML = `<li class="p-4 text-center text-gray-500 font-medium">No students found.</li>`;
+                    list.innerHTML = results.map(r => `<li onclick="selectGlobalStudent('${escapeHtml(r.name).replace(/'/g, "\\'")}', '${r.grade}')" class="p-4 hover:bg-blue-50 cursor-pointer flex justify-between items-center transition-colors border-b border-gray-50 last:border-b-0"><span class="font-bold text-gray-800">${escapeHtml(r.name)}</span><span class="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded-md">Grade ${r.grade}</span></li>`).join('');
+                });
+            }, 300);
+        }
+        function selectGlobalStudent(name, grade) {
+            document.getElementById('globalSearchResults').classList.add('hidden'); document.getElementById('globalSearchInput').value = '';
+            state.currentGrade = grade; state.currentStudent = name;
+            runGoogleScript('getGradeData', [grade], (data) => {
+                state.students = data.students || []; state.dailySettings = data.settings || { wordCount: '', compTotal: '' };
+                if (!state.dailySettings.wordCount || !state.dailySettings.compTotal) { state.pendingStudentRedirect = name; openDailySettingsModal(); showToast("Please set today's limits first."); } 
+                else openStudentProfile(name);
+            });
+        }
+        document.addEventListener('click', (e) => { if(!e.target.closest('#globalSearchInput') && !e.target.closest('#globalSearchResults')) { const list = document.getElementById('globalSearchResults'); if(list) list.classList.add('hidden'); } });
+
+        function fetchGrades() {
+            const grid = document.getElementById('gradesGrid'); 
+            grid.innerHTML = `<div class="col-span-full text-center py-10 text-gray-500 font-bold"><i class="ph-bold ph-spinner animate-spin inline-block"></i> Loading grades...</div>`;
+            
+            let isDone = false;
+            let timeout = setTimeout(() => {
+                if(!isDone) grid.innerHTML = `<div class="col-span-full text-center py-10 text-red-500 bg-red-50 rounded-xl border border-red-200 shadow-sm"><p class="font-bold text-lg mb-2">Connection Timeout</p><p class="text-sm text-red-600 mb-4">Google Sheets didn't respond. Please click <br/><b>Deploy -> New deployment</b><br/> in Apps Script, then refresh.</p><button onclick="fetchGrades()" class="px-6 py-2 bg-red-600 text-white rounded-xl font-bold shadow-md hover:bg-red-700 transition-colors">Retry Connection</button></div>`; 
+            }, 12000);
+
+            runGoogleScript('getAvailableGrades', [], (grades) => { 
+                isDone = true; clearTimeout(timeout);
+                state.grades = grades || []; renderGrades(); 
+                runGoogleScript('getPendingAssessments', [], (data) => {
+                    if (data && Array.isArray(data)) {
+                        const localActiveId = state.activeAssessment ? state.activeAssessment.id : null;
+                        state.pendingAssessments = data;
+                        if(localActiveId) { const match = state.pendingAssessments.find(a => a.id === localActiveId); if (match) Object.assign(state.activeAssessment, match); }
+                        updatePendingBadge(); if (document.getElementById('pendingView').classList.contains('active')) renderPending();
+                    }
+                });
+            }, (err) => { 
+                isDone = true; clearTimeout(timeout);
+                let msg = err.message || err.toString();
+                grid.innerHTML = `<div class="col-span-full text-center py-10 text-red-500 bg-red-50 rounded-xl border border-red-200"><p class="font-bold mb-2">Error loading grades</p><p class="text-xs text-red-400 mb-4">${msg}</p><button onclick="fetchGrades()" class="px-4 py-2 bg-red-600 text-white rounded-lg font-bold">Retry</button></div>`; 
+            });
+        }
+        
+        function renderGrades() {
+            const grid = document.getElementById('gradesGrid');
+            if (state.grades.length === 0) return grid.innerHTML = `<div class="col-span-full text-center py-10 text-gray-500 bg-white rounded-xl border border-dashed border-gray-300"><p>No grades found. Add a grade level to start.</p></div>`;
+            grid.innerHTML = state.grades.map(grade => `<div onclick="openGrade('${grade}')" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all group"><div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><i class="ph-bold ph-users text-2xl"></i></div><h3 class="text-xl font-bold text-gray-800">Grade ${grade}</h3><p class="text-sm text-gray-400 mt-1 flex items-center gap-1 group-hover:text-blue-500">View Students <i class="ph-bold ph-arrow-right"></i></p></div>`).join('');
+        }
+        
+        function openGrade(grade) {
+            if (state.currentGrade !== grade) state.students = []; 
+            state.currentGrade = grade; document.getElementById('localStudentSearch').value = ''; navigateTo('gradeView'); 
+        }
+
+        function renderSettingsDisplay() {
+            const display = document.getElementById('dailySettingsDisplay');
+            if (state.dailySettings.wordCount && state.dailySettings.compTotal) display.innerHTML = `Word Count: <span class="font-bold">${state.dailySettings.wordCount}</span> &nbsp;|&nbsp; Comp Questions: <span class="font-bold">${state.dailySettings.compTotal}</span>`;
+            else display.innerHTML = `Word Count: <span class="font-bold">Not set</span> &nbsp;|&nbsp; Comp Questions: <span class="font-bold">Not set</span>`;
+        }
+        function openDailySettingsModal() { document.getElementById('dailyGradeLevelText').innerText = `Grade ${state.currentGrade}`; document.getElementById('dailyWordCount').value = state.dailySettings.wordCount || ''; document.getElementById('dailyCompTotal').value = state.dailySettings.compTotal || ''; document.getElementById('dailySettingsModal').classList.remove('hidden'); }
+        function closeDailySettingsModal() { state.pendingStudentRedirect = null; document.getElementById('dailySettingsModal').classList.add('hidden'); }
+        function confirmDailySettings() {
+            const wc = parseInt(document.getElementById('dailyWordCount').value); const ct = parseInt(document.getElementById('dailyCompTotal').value);
+            if (isNaN(wc) || wc <= 0) return showAlert("Please enter a valid word count."); if (isNaN(ct) || ct <= 0) return showAlert("Please enter valid comprehension questions.");
+            const btn = document.getElementById('saveDailyBtn'); btn.innerHTML = 'Saving...'; btn.disabled = true;
+            runGoogleScript('saveDailySettings', [state.currentGrade, wc, ct], (saved) => {
+                state.dailySettings = saved; saveState();
+                if (state.pendingStudentRedirect) { const next = state.pendingStudentRedirect; state.pendingStudentRedirect = null; closeDailySettingsModal(); btn.innerHTML = 'Save Settings'; btn.disabled = false; openStudentProfile(next); } 
+                else { renderSettingsDisplay(); closeDailySettingsModal(); showToast("Daily settings saved!"); btn.innerHTML = 'Save Settings'; btn.disabled = false; }
+            });
+        }
+
+        function renderStudents() {
+            const list = document.getElementById('studentsList'); const query = (document.getElementById('localStudentSearch').value || '').toLowerCase();
+            const filteredStudents = state.students.filter(s => s.name.toLowerCase().includes(query));
+            if (state.students.length === 0) return list.innerHTML = `<li class="p-10 text-center text-gray-500 bg-white"><div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400"><i class="ph-bold ph-user-minus text-3xl"></i></div><p class="font-medium text-gray-600">No students enrolled yet.</p><button onclick="goToEnrollment()" class="mt-3 text-blue-600 font-semibold hover:underline">Enroll now</button></li>`;
+            if (filteredStudents.length === 0) return list.innerHTML = `<li class="p-8 text-center text-gray-500 font-medium">No students match your search.</li>`;
+            list.innerHTML = filteredStudents.map(s => {
+                const escapedNameForAttr = escapeHtml(s.name).replace(/'/g, "\\'"); const escapedNameForDisplay = escapeHtml(s.name);
+                return `<li onclick="openStudentProfile('${escapedNameForAttr}')" class="p-4 hover:bg-gray-50 cursor-pointer flex justify-between items-center transition-colors"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold">${escapedNameForDisplay.charAt(0).toUpperCase()}</div><span class="font-bold text-gray-800">${escapedNameForDisplay}</span></div><i class="ph-bold ph-caret-right text-gray-400"></i></li>`;
+            }).join('');
+        }
+
+        function populateAddGradeDropdown() { const select = document.getElementById('newGradeSelect'); select.innerHTML = ''; for(let i=1; i<=12; i++) { if(!state.grades.includes(i.toString())) select.innerHTML += `<option value="${i}">Grade ${i}</option>`; } }
+        function openAddGradeModal() { populateAddGradeDropdown(); document.getElementById('addGradeModal').classList.remove('hidden'); }
+        function closeAddGradeModal() { document.getElementById('addGradeModal').classList.add('hidden'); }
+        function submitNewGrade() {
+            const val = document.getElementById('newGradeSelect').value; if(state.grades.includes(val.toString())) return showAlert(`Grade ${val} already exists.`);
+            const btn = document.getElementById('submitGradeBtn'); btn.innerHTML = 'Saving...'; btn.disabled = true;
+            runGoogleScript('addGradeLevel', [val], (newGrades) => { state.grades = newGrades; renderGrades(); closeAddGradeModal(); showToast(`Grade ${val} added!`); btn.innerHTML = 'Add Grade'; btn.disabled = false; });
+        }
+
+        function openAdminModal() { document.getElementById('adminPassword').value = ''; document.getElementById('adminLoginSection').classList.remove('hidden'); document.getElementById('adminToolsSection').classList.add('hidden'); document.getElementById('adminModal').classList.remove('hidden'); }
+        function closeAdminModal() { document.getElementById('adminModal').classList.add('hidden'); }
+        function verifyAdmin() { if (document.getElementById('adminPassword').value !== "03201997") return showAlert("Incorrect password."); document.getElementById('adminLoginSection').classList.add('hidden'); document.getElementById('adminToolsSection').classList.remove('hidden'); }
+        function executeSystemReset() {
+            const pass = document.getElementById('adminPassword').value; const btn = document.getElementById('executeResetBtn'); btn.innerHTML = 'Wiping...'; btn.disabled = true;
+            runGoogleScript('resetSystem', [pass], () => { showToast("System reset."); state.grades = []; state.students = []; state.pendingAssessments = []; saveState(); closeAdminModal(); btn.innerHTML = 'Wipe Database'; btn.disabled = false; navigateTo('landingView'); });
+        }
+
+        function goToEnrollment() {
+            document.getElementById('enrollmentGradeLabel').innerText = `Enrolling to Grade ${state.currentGrade}`;
+            document.getElementById('enrollmentForms').innerHTML = `<div class="flex gap-3 items-center student-input-row"><span class="font-bold text-gray-400 w-6">1.</span><input type="text" class="student-name-input flex-grow border-gray-300 rounded-xl shadow-sm focus:border-blue-500 focus:ring-blue-500 py-3 px-4 bg-gray-50 border outline-none" placeholder="Student Full Name"><button onclick="removeEnrollmentRow(this)" class="text-red-500 hover:text-red-700 p-2 invisible"><i class="ph-bold ph-trash text-xl"></i></button></div>`;
+            navigateTo('enrollmentView');
+        }
+        function addEnrollmentRow() { const container = document.getElementById('enrollmentForms'); const count = container.querySelectorAll('.student-input-row').length + 1; const div = document.createElement('div'); div.className = 'flex gap-3 items-center student-input-row'; div.innerHTML = `<span class="font-bold text-gray-400 w-6">${count}.</span><input type="text" class="student-name-input flex-grow border-gray-300 rounded-xl shadow-sm focus:border-blue-500 focus:ring-blue-500 py-3 px-4 bg-gray-50 border outline-none" placeholder="Student Full Name"><button onclick="removeEnrollmentRow(this)" class="text-red-500 hover:text-red-700 p-2"><i class="ph-bold ph-trash text-xl"></i></button>`; container.appendChild(div); div.querySelector('input').focus(); }
+        function removeEnrollmentRow(btn) { btn.closest('.student-input-row').remove(); document.querySelectorAll('.student-input-row').forEach((r, i) => r.querySelector('span').innerText = `${i + 1}.`); }
+        function submitBulkEnrollment() {
+            const inputs = document.querySelectorAll('.student-name-input'); const names = Array.from(inputs).map(i => i.value.trim()).filter(n => n !== "");
+            if (names.length === 0) return showAlert("Please enter at least one student name.");
+            const btn = document.getElementById('bulkEnrollBtn'); btn.innerHTML = 'Saving...'; btn.disabled = true;
+            runGoogleScript('enrollStudentsBulk', [names, state.currentGrade], (res) => { showToast(`Enrolled ${res.added.length} students!`); btn.innerHTML = '<i class="ph-bold ph-check-circle"></i> Save All Students'; btn.disabled = false; openGrade(state.currentGrade); });
+        }
+
+        function openStudentProfile(name) {
+            state.currentStudent = name; document.getElementById('profileStudentName').innerText = name; document.getElementById('profileGradeLevel').innerText = `Grade ${state.currentGrade}`; navigateTo('studentProfileView');
+            document.getElementById('profileHistoryCards').innerHTML = `<div class="col-span-full text-center py-6 text-gray-400 font-bold"><i class="ph-bold ph-spinner animate-spin"></i> Loading...</div>`;
+            
+            runGoogleScript('getStudentHistory', [name], (history) => {
+                currentStudentHistoryData = history || []; // Cache for editing
+                const container = document.getElementById('profileHistoryCards');
+                if (currentStudentHistoryData.length === 0) return container.innerHTML = `<div class="col-span-full text-center py-6 text-gray-400 text-sm italic border border-dashed rounded-xl border-gray-200">No previous assessment records.</div>`;
+                container.innerHTML = currentStudentHistoryData.map((h, i) => `
+                <div class="bg-gray-50 rounded-xl p-4 border border-gray-200 relative pb-10">
+                    <p class="text-xs font-bold text-gray-500 uppercase mb-3"><i class="ph-bold ph-calendar-blank"></i> ${h.date}</p>
+                    <div class="grid grid-cols-2 gap-2 mb-3 text-sm">
+                        <div class="bg-white p-2 rounded border border-gray-100">
+                            <p class="text-[10px] text-gray-400 font-bold uppercase">Rate (WPM)</p>
+                            <p class="font-bold text-gray-800">${h.wpm}</p>
+                        </div>
+                        <div class="bg-white p-2 rounded border border-gray-100">
+                            <p class="text-[10px] text-gray-400 font-bold uppercase">Word Rdg</p>
+                            <p class="font-bold text-gray-800">${h.wordScore}% <span class="text-[10px] font-normal text-gray-500 block leading-tight">${h.wordProfile}</span></p>
+                        </div>
+                        <div class="bg-white p-2 rounded border border-gray-100 col-span-2">
+                            <p class="text-[10px] text-gray-400 font-bold uppercase">Comprehension</p>
+                            <p class="font-bold text-gray-800">${h.compScore}% <span class="text-xs font-normal text-gray-500 ml-1">(${h.compProfile})</span></p>
+                        </div>
+                    </div>
+                    <div class="w-full text-center py-1.5 rounded text-xs font-bold uppercase ${h.profile === 'Independent' ? 'bg-green-100 text-green-700' : h.profile === 'Instructional' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}">
+                        Overall: ${h.profile}
+                    </div>
+                    <button onclick="editPastAssessment(${i})" class="absolute bottom-2 left-2 right-2 text-[10px] font-bold bg-blue-100 hover:bg-blue-200 text-blue-700 py-1.5 rounded transition-colors text-center">
+                       <i class="ph-bold ph-pencil-simple"></i> Edit Assessment
+                    </button>
+                </div>`).join('');
+            });
+        }
+
+        function editPastAssessment(index) {
+            const record = currentStudentHistoryData[index];
+            state.activeAssessment = {
+                id: Date.now().toString(), studentName: state.currentStudent, gradeLevel: record.gradeLevel || state.currentGrade,
+                wordCount: record.wordCount, timeInSeconds: record.timeInSeconds, miscueCount: record.miscueCount,
+                incorrectWords: record.incorrectWords || [], compTotal: state.dailySettings.compTotal || 7,
+                originalFingerprint: `${String(state.currentStudent).trim().toLowerCase()}_${record.gradeLevel}_${record.wordCount}_${record.timeInSeconds}`
+            };
+            
+            document.getElementById('testWordCount').value = record.wordCount || ''; document.getElementById('timingMethod').value = 'manual';
+            document.getElementById('manualTimeInput').value = record.timeInSeconds || ''; document.getElementById('miscueMethod').value = 'manual';
+            miscueCount = record.miscueCount || 0;
+            
+            toggleTimingMethod(); toggleMiscueMethod(); navigateTo('readingTestView'); showToast("Edit mode active. Change required values and progress.");
+        }
+
+        function startAssessment() {
+            state.activeAssessment = { 
+                id: Date.now().toString(), studentName: state.currentStudent, gradeLevel: state.currentGrade, 
+                wordCount: 0, timeInSeconds: 0, miscueCount: 0, incorrectWords: [], compTotal: 0, compCorrect: 0,
+                miscueBreakdown: null, wordReadingProfile: null, comprehensionProfile: null, finalProfile: null, originalFingerprint: null
+            };
+            document.getElementById('testWordCount').value = state.dailySettings.wordCount || '';
+            resetTimer(); document.getElementById('timingMethod').value = 'stopwatch'; document.getElementById('miscueMethod').value = 'clicker';
+            toggleTimingMethod(); toggleMiscueMethod(); navigateTo('readingTestView');
+        }
+
+        function toggleTimingMethod() { if (document.getElementById('timingMethod').value === 'stopwatch') { document.getElementById('stopwatchSection').classList.remove('hidden'); document.getElementById('manualTimeSection').classList.add('hidden'); } else { document.getElementById('stopwatchSection').classList.add('hidden'); document.getElementById('manualTimeSection').classList.remove('hidden'); resetTimer(); } }
+        function toggleMiscueMethod() { if (document.getElementById('miscueMethod').value === 'clicker') { document.getElementById('clickerSection').classList.remove('hidden'); document.getElementById('clickerHiddenMsg').classList.add('hidden'); } else { document.getElementById('clickerSection').classList.add('hidden'); document.getElementById('clickerHiddenMsg').classList.remove('hidden'); document.getElementById('miscueDisplay').innerText = miscueCount; } }
+        function updateTimerUI() { const mins = Math.floor(timeElapsed / 60); const secs = timeElapsed % 60; document.getElementById('timerDisplay').innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`; saveState(); }
+        function toggleTimer() {
+            const startBtn = document.getElementById('startTimerBtn'); const display = document.getElementById('timerDisplay');
+            if (isRunning) { clearInterval(timerInterval); isRunning = false; startBtn.innerHTML = '<i class="ph-fill ph-play"></i> Resume Reading'; startBtn.classList.replace('bg-yellow-500', 'bg-green-500'); startBtn.classList.replace('hover:bg-yellow-600', 'hover:bg-green-600'); display.classList.remove('timer-active'); } 
+            else { timerInterval = setInterval(() => { timeElapsed++; updateTimerUI(); }, 1000); isRunning = true; startBtn.innerHTML = '<i class="ph-fill ph-pause"></i> Pause Timer'; startBtn.classList.replace('bg-green-500', 'bg-yellow-500'); startBtn.classList.replace('hover:bg-green-600', 'hover:bg-yellow-600'); display.classList.add('timer-active'); }
+            saveState();
+        }
+        function resetTimer() { clearInterval(timerInterval); isRunning = false; timeElapsed = 0; updateTimerUI(); const startBtn = document.getElementById('startTimerBtn'); startBtn.innerHTML = '<i class="ph-fill ph-play"></i> Start Reading'; startBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600'); startBtn.classList.add('bg-green-500', 'hover:bg-green-600'); document.getElementById('timerDisplay').classList.remove('timer-active'); saveState(); }
+        function addMiscue() { miscueCount++; document.getElementById('miscueDisplay').innerText = miscueCount; saveState(); }
+        function removeMiscue() { if (miscueCount > 0) { miscueCount--; document.getElementById('miscueDisplay').innerText = miscueCount; saveState(); } }
+
+        function finishReadingPart() {
+            if (isRunning) toggleTimer();
+            const wordCount = parseInt(document.getElementById('testWordCount').value);
+            if (isNaN(wordCount) || wordCount <= 0) return showAlert("Please enter a valid Passage Word Count.");
+
+            let finalTime = 0;
+            if (document.getElementById('timingMethod').value === 'stopwatch') { finalTime = timeElapsed; if (finalTime === 0) return showAlert("Stopwatch time is 0."); } 
+            else { finalTime = parseInt(document.getElementById('manualTimeInput').value); if (isNaN(finalTime) || finalTime <= 0) return showAlert("Enter a valid manual time."); }
+            
+            state.activeAssessment.wordCount = wordCount;
+            state.activeAssessment.timeInSeconds = finalTime;
+            state.activeAssessment.miscueCount = document.getElementById('miscueMethod').value === 'clicker' ? miscueCount : (state.activeAssessment.miscueCount || 0);
+            saveState();
+
+            const btn = document.querySelector('#readingTestView button[onclick="finishReadingPart()"]'); const origText = btn.innerHTML; btn.innerHTML = 'Saving...'; btn.disabled = true;
+
+            runGoogleScript('upsertPendingAssessment', [state.activeAssessment], () => {
+                const idx = state.pendingAssessments.findIndex(a => a.id === state.activeAssessment.id);
+                if (idx === -1) state.pendingAssessments.push(JSON.parse(JSON.stringify(state.activeAssessment)));
+                else state.pendingAssessments[idx] = JSON.parse(JSON.stringify(state.activeAssessment));
+                
+                updatePendingBadge(); showToast("Reading complete. Backed up to temporary storage."); btn.innerHTML = origText; btn.disabled = false;
+                navigateTo('pendingView');
+            }, () => { btn.innerHTML = origText; btn.disabled = false; });
+        }
+
+        function updatePendingBadge() { const badge = document.getElementById('pendingCountBadge'); if (state.pendingAssessments.length > 0) { badge.innerText = state.pendingAssessments.length; badge.classList.remove('hidden'); } else { badge.classList.add('hidden'); } }
+        function renderPending() {
+            const list = document.getElementById('pendingList');
+            if (state.pendingAssessments.length === 0) return list.innerHTML = `<li class="p-10 text-center text-gray-500"><div class="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-3 text-green-500"><i class="ph-bold ph-check-circle text-3xl"></i></div><p class="font-medium text-gray-600">All caught up!</p></li>`;
+            list.innerHTML = state.pendingAssessments.map(a => `<li class="p-6 hover:bg-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors"><div><h4 class="font-bold text-gray-800 text-lg">${a.studentName} ${a.originalFingerprint ? '<span class="bg-yellow-200 text-yellow-800 text-[10px] px-1 rounded ml-1">EDIT</span>' : ''}</h4><p class="text-sm text-gray-500 flex gap-3 mt-1"><span><i class="ph-bold ph-users"></i> Grade ${a.gradeLevel}</span><span><i class="ph-bold ph-timer"></i> ${a.timeInSeconds}s</span><span><i class="ph-bold ph-book-open"></i> ${a.wordCount} words</span></p></div><button onclick="resumeAssessment('${a.id}')" class="w-full sm:w-auto bg-blue-100 text-blue-700 px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2">Continue <i class="ph-bold ph-arrow-right"></i></button></li>`).join('');
+        }
+        
+        function resumeAssessment(id) {
+            const assessmentIndex = state.pendingAssessments.findIndex(a => a.id === id); if(assessmentIndex === -1) return;
+            state.activeAssessment = JSON.parse(JSON.stringify(state.pendingAssessments[assessmentIndex]));
+            
+            if (state.activeAssessment.miscueCount > 0) { renderMiscueBreakdown(); navigateTo('miscueBreakdownView'); } 
+            else {
+                document.getElementById('compStudentName').innerText = state.activeAssessment.studentName;
+                document.getElementById('compTotal').value = state.activeAssessment.compTotal || state.dailySettings.compTotal || '';
+                document.getElementById('compCorrect').value = state.activeAssessment.compCorrect || ''; navigateTo('comprehensionView');
+            }
+        }
+
+        function renderMiscueBreakdown() {
+            if(!state.activeAssessment.miscueBreakdown) { state.activeAssessment.miscueBreakdown = {}; MISCUE_TYPES.forEach(t => state.activeAssessment.miscueBreakdown[t.id] = 0); }
+            document.getElementById('mbStudentName').innerText = state.activeAssessment.studentName; document.getElementById('mbTargetTotal').innerText = state.activeAssessment.miscueCount;
+            
+            const container = document.getElementById('miscueCountersContainer');
+            container.innerHTML = MISCUE_TYPES.map(t => `
+                <div class="flex justify-between items-center bg-gray-50 p-4 rounded-xl border border-gray-200">
+                    <div>
+                        <p class="font-bold text-gray-800 leading-tight">${t.label}</p>
+                        <p class="text-[11px] text-gray-500 font-medium">${t.sub}</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button onclick="updateMiscueType('${t.id}', -1)" class="w-8 h-8 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center hover:bg-gray-300 font-bold active:scale-95 transition-transform">-</button>
+                        <span class="w-6 text-center font-bold text-lg" id="mb_count_${t.id}">${state.activeAssessment.miscueBreakdown[t.id] || 0}</span>
+                        <button onclick="updateMiscueType('${t.id}', 1)" class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center hover:bg-blue-200 font-bold active:scale-95 transition-transform">+</button>
+                    </div>
+                </div>
+            `).join('');
+            updateMiscueBreakdownTotal();
+        }
+
+        function updateMiscueType(id, change) {
+            let current = state.activeAssessment.miscueBreakdown[id] || 0; current += change; if(current < 0) current = 0;
+            state.activeAssessment.miscueBreakdown[id] = current; document.getElementById(`mb_count_${id}`).innerText = current; updateMiscueBreakdownTotal(); saveState();
+        }
+
+        function updateMiscueBreakdownTotal() {
+            const total = Object.values(state.activeAssessment.miscueBreakdown).reduce((a,b) => a+b, 0); const badge = document.getElementById('mbTotalRecorded'); badge.innerText = total;
+            if(total > state.activeAssessment.miscueCount) badge.parentElement.className = "text-sm font-bold px-3 py-1.5 rounded-lg flex gap-2 items-center bg-red-100 text-red-700 border border-red-200";
+            else if (total === state.activeAssessment.miscueCount && total > 0) badge.parentElement.className = "text-sm font-bold px-3 py-1.5 rounded-lg flex gap-2 items-center bg-green-100 text-green-700 border border-green-200";
+            else badge.parentElement.className = "text-sm font-bold px-3 py-1.5 rounded-lg flex gap-2 items-center bg-gray-100 text-gray-600 border border-gray-200";
+        }
+
+        function skipMiscueBreakdown() { state.activeAssessment.miscueBreakdown = null; saveState(); navigateTo('wordsEncodingView'); }
+        function saveMiscueBreakdown() { saveState(); runGoogleScript('upsertPendingAssessment', [state.activeAssessment], ()=>{}, ()=>{}); navigateTo('wordsEncodingView'); }
+
+        let debounceTimer;
+        async function handleWordSearch(val) {
+            const list = document.getElementById('autocompleteList'); const term = val.trim();
+            if(term.length < 2) { list.classList.add('hidden'); return; }
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(async () => {
+                try {
+                    const response = await fetch(`https://api.datamuse.com/sug?s=${term}&max=5`); const data = await response.json();
+                    if(data && data.length > 0) { list.innerHTML = data.map(item => `<li onclick="selectAutocomplete('${escapeHtml(item.word).replace(/'/g, "\\'")}')" class="px-4 py-2 hover:bg-blue-50 cursor-pointer text-gray-700 font-medium border-b border-gray-50 last:border-b-0">${escapeHtml(item.word)}</li>`).join(''); list.classList.remove('hidden'); } else list.classList.add('hidden');
+                } catch(e) { list.classList.add('hidden'); }
+            }, 300);
+        }
+        function selectAutocomplete(word) { document.getElementById('wordInput').value = word; document.getElementById('autocompleteList').classList.add('hidden'); addWord(); }
+        
+        function addWord() {
+            const input = document.getElementById('wordInput'); const word = input.value.trim().toLowerCase();
+            if (!word) return;
+            if (state.activeAssessment.incorrectWords.includes(word)) { input.value = ''; return showToast("Word already added."); }
+            state.activeAssessment.incorrectWords.push(word); input.value = ''; document.getElementById('autocompleteList').classList.add('hidden'); 
+            renderWordTags(); saveState(); runGoogleScript('upsertPendingAssessment', [state.activeAssessment], ()=>{}, ()=>{});
+        }
+        function removeWord(word) { state.activeAssessment.incorrectWords = state.activeAssessment.incorrectWords.filter(w => w !== word); renderWordTags(); saveState(); runGoogleScript('upsertPendingAssessment', [state.activeAssessment], ()=>{}, ()=>{}); }
+        function renderWordTags() {
+            const container = document.getElementById('wordsTagsContainer'); document.getElementById('wordsTotalBadge').innerText = `Total: ${state.activeAssessment.incorrectWords.length}`;
+            if (state.activeAssessment.incorrectWords.length === 0) return container.innerHTML = `<span class="text-gray-400 text-sm italic py-2">No incorrect words recorded.</span>`;
+            container.innerHTML = state.activeAssessment.incorrectWords.map(w => `<div class="bg-white border border-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm">${escapeHtml(w)} <button onclick="removeWord('${escapeHtml(w).replace(/'/g, "\\'")}')" class="text-gray-400 hover:text-red-500"><i class="ph-bold ph-x"></i></button></div>`).join('');
+        }
+
+        function proceedToComprehension() {
+            if (state.activeAssessment.incorrectWords.length > state.activeAssessment.miscueCount) state.activeAssessment.miscueCount = state.activeAssessment.incorrectWords.length;
+            if(state.activeAssessment.miscueCount > state.activeAssessment.wordCount) return showAlert("Errors cannot exceed passage word count.");
+            saveState(); navigateTo('comprehensionView');
+        }
+
+        function getWordReadingLevel(score) { if (score >= 97) return "Independent"; if (score >= 90) return "Instructional"; return "Frustration"; }
+        function getComprehensionLevel(score) { if (score >= 80) return "Independent"; if (score >= 59) return "Instructional"; return "Frustration"; }
+        function getOverallProfile(wrLevel, compLevel) {
+            if (wrLevel === "Independent" && compLevel === "Independent") return "Independent";
+            if (wrLevel === "Independent" && compLevel === "Instructional") return "Instructional";
+            if (wrLevel === "Instructional" && compLevel === "Independent") return "Instructional";
+            if (wrLevel === "Instructional" && compLevel === "Instructional") return "Instructional";
+            if (wrLevel === "Instructional" && compLevel === "Frustration") return "Frustration";
+            if (wrLevel === "Frustration" && compLevel === "Instructional") return "Frustration";
+            if (wrLevel === "Frustration" && compLevel === "Frustration") return "Frustration";
+            return "Frustration"; 
+        }
+        function updateLabelStyle(elementId, level) {
+            const el = document.getElementById(elementId); el.innerText = level;
+            el.className = 'inline-block px-2 py-1 rounded-md text-[10px] font-bold uppercase mt-2 border ' + (level === "Independent" ? 'bg-green-900/50 text-green-300 border-green-700/50' : level === "Instructional" ? 'bg-yellow-900/50 text-yellow-300 border-yellow-700/50' : 'bg-red-900/50 text-red-300 border-red-700/50');
+        }
+
+        function calculateFinalResults(isReload = false) {
+            const total = parseInt(document.getElementById('compTotal').value); const correct = parseInt(document.getElementById('compCorrect').value);
+            if (isNaN(total) || total <= 0) return showAlert("Enter Total Questions."); if (isNaN(correct) || correct < 0) return showAlert("Enter Correct Answers.");
+            if (correct > total) return showAlert("Answers cannot exceed total questions.");
+            if (state.activeAssessment.wordCount <= 0 || state.activeAssessment.timeInSeconds <= 0) return showAlert("Invalid reading stats.");
+
+            state.activeAssessment.compTotal = total; state.activeAssessment.compCorrect = correct;
+            const wpm = (state.activeAssessment.wordCount / state.activeAssessment.timeInSeconds) * 60;
+            const wordReadingScore = ((state.activeAssessment.wordCount - state.activeAssessment.miscueCount) / state.activeAssessment.wordCount) * 100;
+            const wrLevel = getWordReadingLevel(Math.round(wordReadingScore));
+            const compScore = (correct / total) * 100; const compLevel = getComprehensionLevel(Math.round(compScore));
+            const overallProfile = getOverallProfile(wrLevel, compLevel);
+
+            state.activeAssessment.wordReadingProfile = wrLevel; state.activeAssessment.comprehensionProfile = compLevel; state.activeAssessment.finalProfile = overallProfile;
+
+            document.getElementById('resStudentName').innerText = state.activeAssessment.studentName; document.getElementById('resGrade').innerText = `Grade ${state.activeAssessment.gradeLevel}`;
+            document.getElementById('resWpm').innerText = wpm.toFixed(1); document.getElementById('resWordScore').innerText = wordReadingScore.toFixed(1); document.getElementById('resCompScore').innerText = compScore.toFixed(1);
+            
+            const overallEl = document.getElementById('resOverall'); overallEl.innerText = overallProfile;
+            overallEl.className = 'text-2xl sm:text-2xl font-black leading-tight mt-1 ' + (overallProfile === 'Independent' ? 'text-green-400' : overallProfile === 'Instructional' ? 'text-yellow-400' : 'text-red-400');
+            updateLabelStyle('resWordLabel', wrLevel); updateLabelStyle('resCompLabel', compLevel); 
+            
+            saveState(); runGoogleScript('upsertPendingAssessment', [state.activeAssessment], ()=>{}, ()=>{});
+            if (!isReload) navigateTo('resultsView');
+        }
+
+        function saveFinalToSheet() {
+            const data = {
+                id: state.activeAssessment.id, student: state.activeAssessment.studentName, grade: state.activeAssessment.gradeLevel,
+                wordCount: state.activeAssessment.wordCount, miscues: state.activeAssessment.miscueCount, timeInSeconds: state.activeAssessment.timeInSeconds, 
+                wpm: (state.activeAssessment.wordCount / state.activeAssessment.timeInSeconds * 60).toFixed(1),
+                wordReadingPercent: (((state.activeAssessment.wordCount - state.activeAssessment.miscueCount) / state.activeAssessment.wordCount) * 100).toFixed(1), 
+                comprehensionPercent: ((state.activeAssessment.compCorrect / state.activeAssessment.compTotal) * 100).toFixed(1),
+                wordReadingProfile: state.activeAssessment.wordReadingProfile, comprehensionProfile: state.activeAssessment.comprehensionProfile,
+                finalProfile: state.activeAssessment.finalProfile, incorrectWords: state.activeAssessment.incorrectWords,
+                compTotal: state.activeAssessment.compTotal, miscueBreakdown: state.activeAssessment.miscueBreakdown, originalFingerprint: state.activeAssessment.originalFingerprint 
+            };
+            const btn = document.getElementById('saveFinalBtn'); const origHtml = btn.innerHTML; btn.innerHTML = 'Saving...'; btn.disabled = true;
+
+            runGoogleScript('saveAssessmentData', [data], () => {
+                showToast("Saved to Google Sheets!");
+                state.pendingAssessments = state.pendingAssessments.filter(a => a.id !== state.activeAssessment.id); updatePendingBadge();
+                btn.innerHTML = origHtml; btn.disabled = false; openStudentProfile(state.activeAssessment.studentName);
+            });
+        }
+        function discardResult() { navigateTo('pendingView'); }
+
+        function openPdfModal() { document.getElementById('pdfModalSubtitle').innerText = `Grade ${state.currentGrade} Report`; const today = new Date(); const firstDay = new Date(today.getFullYear(), today.getMonth(), 1); const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0); const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; document.getElementById('pdfStartDate').value = fmt(firstDay); document.getElementById('pdfEndDate').value = fmt(lastDay); document.getElementById('pdfModal').classList.remove('hidden'); }
+        function closePdfModal() { document.getElementById('pdfModal').classList.add('hidden'); }
+        function generatePDF() {
+            const sDate = document.getElementById('pdfStartDate').value; const eDate = document.getElementById('pdfEndDate').value;
+            if (!sDate || !eDate || new Date(sDate) > new Date(eDate)) return showAlert("Invalid date range.");
+            const btn = document.getElementById('generatePdfBtn'); const origHtml = btn.innerHTML; btn.innerHTML = 'Loading...'; btn.disabled = true;
+
+            runGoogleScript('getResultsForPDF', [state.currentGrade, sDate, eDate], (data) => {
+                if(!data || data.length === 0) { btn.innerHTML = origHtml; btn.disabled = false; return showAlert("No records found for this date range."); }
+                const doc = new window.jspdf.jsPDF({ orientation: "landscape" });
+                doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.setTextColor(30, 64, 175); doc.text("Phil-IRI Reading Assessment Report", 14, 22);
+                doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(100, 116, 139); doc.text(`Grade ${state.currentGrade} | Date Range: ${sDate} to ${eDate}`, 14, 30);
+                const rows = data.map(r => [ r.date, r.studentName, r.wpm, r.miscues, `${r.wordScore}% (${r.wordProfile})`, `${r.compScore}% (${r.compProfile})`, r.profile, r.incorrectWords ]);
+                doc.autoTable({ 
+                    head: [["Date", "Student Name", "Rate (WPM)", "Errors", "Word Reading", "Comprehension", "Overall Profile", "Incorrect Words"]], body: rows, 
+                    startY: 38, theme: 'grid', headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold' }, styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak' }, 
+                    columnStyles: { 1: { cellWidth: 35 }, 4: { cellWidth: 35 }, 5: { cellWidth: 35 }, 7: { cellWidth: 60 } }, 
+                    didParseCell: function (data) { 
+                        if (data.section === 'body' && data.column.index === 6) { 
+                            if (data.cell.raw === 'Independent') data.cell.styles.textColor = [21, 128, 61]; 
+                            if (data.cell.raw === 'Instructional') data.cell.styles.textColor = [161, 98, 7]; 
+                            if (data.cell.raw === 'Frustration') data.cell.styles.textColor = [185, 28, 28]; 
+                            data.cell.styles.fontStyle = 'bold'; 
+                        } 
+                    } 
+                });
+                doc.save(`Phil-IRI_Grade_${state.currentGrade}_Report.pdf`); showToast("PDF Downloaded!"); btn.innerHTML = origHtml; btn.disabled = false; closePdfModal();
+            });
+        }
+    </script>
+</body>
+</html>
