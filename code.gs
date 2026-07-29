@@ -1,6 +1,7 @@
 // This function serves your HTML file when you deploy as a Web App
 function doGet(e) {
-  return HtmlService.createHtmlOutputFromFile('Index')
+  return HtmlService.createTemplateFromFile('Index')
+      .evaluate()
       .setTitle('Phil-IRI Assessment Tool')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
       .addMetaTag('viewport', 'width=device-width, initial-scale=1');
@@ -82,28 +83,6 @@ function onEdit(e) {
   if (updatedAny) range.setValues(valuesArray);
 }
 
-function getWordReadingLevel(score) {
-  if (score >= 97) return "Independent";
-  if (score >= 90) return "Instructional";
-  return "Frustration";
-}
-
-function getComprehensionLevel(score) {
-  if (score >= 80) return "Independent";
-  if (score >= 59) return "Instructional";
-  return "Frustration";
-}
-
-function getOverallProfile(wrLevel, compLevel) {
-  if (wrLevel === "Independent" && compLevel === "Independent") return "Independent";
-  if (wrLevel === "Independent" && compLevel === "Instructional") return "Instructional";
-  if (wrLevel === "Instructional" && compLevel === "Independent") return "Instructional";
-  if (wrLevel === "Instructional" && compLevel === "Instructional") return "Instructional";
-  if (wrLevel === "Instructional" && compLevel === "Frustration") return "Frustration";
-  if (wrLevel === "Frustration" && compLevel === "Instructional") return "Frustration";
-  if (wrLevel === "Frustration" && compLevel === "Frustration") return "Frustration";
-  return "Frustration"; 
-}
 
 function initCheck() {
   const ss = getSpreadsheet();
