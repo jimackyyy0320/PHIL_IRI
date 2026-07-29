@@ -847,25 +847,39 @@
             
             let isDone = false;
             let timeout = setTimeout(() => {
-                if(!isDone) grid.innerHTML = `<div class="col-span-full text-center py-10 text-red-500 bg-red-50 rounded-xl border border-red-200 shadow-sm"><p class="font-bold text-lg mb-2">Connection Timeout</p><p class="text-sm text-red-600 mb-4">Google Sheets didn't respond. Please click <br/><b>Deploy -> New deployment</b><br/> in Apps Script, then refresh.</p><button onclick="fetchGrades()" class="px-6 py-2 bg-red-600 text-white rounded-xl font-bold shadow-md hover:bg-red-700 transition-colors">Retry Connection</button></div>`; 
+                if(!isDone) {
+                    isDone = true;
+                    grid.innerHTML = `<div class="col-span-full text-center py-10 text-red-500 bg-red-50 rounded-xl border border-red-200 shadow-sm"><p class="font-bold text-lg mb-2">Connection Timeout</p><p class="text-sm text-red-600 mb-4">Google Sheets didn't respond in time. This could be due to permission issues or a slow connection.</p><button onclick="fetchGrades()" class="px-6 py-2 bg-red-600 text-white rounded-xl font-bold shadow-md hover:bg-red-700 transition-colors">Retry Connection</button></div>`;
+                }
             }, 12000);
 
-            runGoogleScript('getAvailableGrades', [], (grades) => { 
-                isDone = true; clearTimeout(timeout);
-                state.grades = grades || []; renderGrades(); 
-                runGoogleScript('getPendingAssessments', [], (data) => {
-                    if (data && Array.isArray(data)) {
-                        const localActiveId = state.activeAssessment ? state.activeAssessment.id : null;
-                        state.pendingAssessments = data;
-                        if(localActiveId) { const match = state.pendingAssessments.find(a => a.id === localActiveId); if (match) Object.assign(state.activeAssessment, match); }
-                        updatePendingBadge(); if (document.getElementById('pendingView').classList.contains('active')) renderPending();
-                    }
+            try {
+                runGoogleScript('getAvailableGrades', [], (grades) => {
+                    if(isDone) return;
+                    isDone = true; clearTimeout(timeout);
+                    state.grades = grades || []; renderGrades();
+
+                    runGoogleScript('getPendingAssessments', [], (data) => {
+                        if (data && Array.isArray(data)) {
+                            const localActiveId = state.activeAssessment ? state.activeAssessment.id : null;
+                            state.pendingAssessments = data;
+                            if(localActiveId) { const match = state.pendingAssessments.find(a => a.id === localActiveId); if (match) Object.assign(state.activeAssessment, match); }
+                            updatePendingBadge(); if (document.getElementById('pendingView').classList.contains('active')) renderPending();
+                        }
+                    }, (err) => {
+                        console.error("Failed to load pending assessments:", err);
+                    });
+                }, (err) => {
+                    if(isDone) return;
+                    isDone = true; clearTimeout(timeout);
+                    let msg = err.message || err.toString();
+                    grid.innerHTML = `<div class="col-span-full text-center py-10 text-red-500 bg-red-50 rounded-xl border border-red-200"><p class="font-bold mb-2">Error loading grades</p><p class="text-xs text-red-400 mb-4">${msg}</p><button onclick="fetchGrades()" class="px-4 py-2 bg-red-600 text-white rounded-lg font-bold">Retry</button></div>`;
                 });
-            }, (err) => { 
+            } catch(e) {
+                if(isDone) return;
                 isDone = true; clearTimeout(timeout);
-                let msg = err.message || err.toString();
-                grid.innerHTML = `<div class="col-span-full text-center py-10 text-red-500 bg-red-50 rounded-xl border border-red-200"><p class="font-bold mb-2">Error loading grades</p><p class="text-xs text-red-400 mb-4">${msg}</p><button onclick="fetchGrades()" class="px-4 py-2 bg-red-600 text-white rounded-lg font-bold">Retry</button></div>`; 
-            });
+                grid.innerHTML = `<div class="col-span-full text-center py-10 text-red-500 bg-red-50 rounded-xl border border-red-200"><p class="font-bold mb-2">Critical Error</p><p class="text-xs text-red-400 mb-4">${e.message}</p><button onclick="fetchGrades()" class="px-4 py-2 bg-red-600 text-white rounded-lg font-bold">Retry</button></div>`;
+            }
         }
         
         function renderGrades() {
