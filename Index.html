@@ -583,6 +583,7 @@
     </div>
 
     <script>
+
         const MISCUE_TYPES = [
             { id: 'mispronunciation', label: 'Mispronunciation', sub: 'Maling Bigkas' },
             { id: 'omission', label: 'Omission', sub: 'Pagkakaltas' },
@@ -592,6 +593,19 @@
             { id: 'transposition', label: 'Transposition', sub: 'Pagpapalit Lugar' },
             { id: 'reversal', label: 'Reversal', sub: 'Paglilipat' }
         ];
+
+        // Safe storage wrapper to prevent quota/security exceptions (e.g., blocked third-party cookies)
+        let memoryStorage = {};
+        const safeStorage = {
+            getItem(key) {
+                try { return sessionStorage.getItem(key); }
+                catch(e) { return memoryStorage[key] || null; }
+            },
+            setItem(key, value) {
+                try { sessionStorage.setItem(key, value); }
+                catch(e) { memoryStorage[key] = value; }
+            }
+        };
 
         const state = {
             grades: [], students: [], pendingAssessments: [],
@@ -658,7 +672,7 @@
             var wiVal = document.getElementById('wordInput') ? document.getElementById('wordInput').value : '';
             var mtiVal = document.getElementById('manualTimeInput') ? document.getElementById('manualTimeInput').value : '';
 
-            sessionStorage.setItem('philIriState', JSON.stringify({
+            safeStorage.setItem('philIriState', JSON.stringify({
                 ...state, timerElapsed: timeElapsed, timerMiscueCount: miscueCount, timerIsRunning: isRunning,
                 timingMethod: tmVal,
                 miscueMethod: mmVal,
@@ -671,7 +685,7 @@
         }
 
         function restoreState() {
-            const saved = sessionStorage.getItem('philIriState');
+            const saved = safeStorage.getItem('philIriState');
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved); Object.assign(state, parsed);
@@ -701,7 +715,7 @@
         }
 
         function restoreViewDOM(viewId) {
-            const saved = JSON.parse(sessionStorage.getItem('philIriState') || '{}');
+            const saved = JSON.parse(safeStorage.getItem('philIriState') || '{}');
             
             if (viewId === 'gradeView' && state.currentGrade) {
                 document.getElementById('gradeViewTitle').innerText = `Grade ${state.currentGrade} Students`;
