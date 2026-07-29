@@ -111,7 +111,7 @@ function initCheck() {
 }
 
 function setupSpreadsheet() {
-  const lock = LockService.getDocumentLock();
+  const lock = LockService.getScriptLock();
   if (lock && !lock.tryLock(10000)) return; // Prevents crash if running twice
   
   try {

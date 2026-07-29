@@ -734,7 +734,37 @@
             if (viewId === 'studentProfileView' && state.currentStudent) {
                 document.getElementById('profileStudentName').innerText = state.currentStudent;
                 document.getElementById('profileGradeLevel').innerText = `Grade ${state.currentGrade}`;
-                if(document.getElementById('profileHistoryCards').innerText.includes('Loading')) openStudentProfile(state.currentStudent);
+                if(document.getElementById('profileHistoryCards').innerText.includes('Loading')) {
+                    runGoogleScript('getStudentHistory', [state.currentStudent], (history) => {
+                        currentStudentHistoryData = history || []; // Cache for editing
+                        const container = document.getElementById('profileHistoryCards');
+                        if (currentStudentHistoryData.length === 0) return container.innerHTML = `<div class="col-span-full text-center py-6 text-gray-400 text-sm italic border border-dashed rounded-xl border-gray-200">No previous assessment records.</div>`;
+                        container.innerHTML = currentStudentHistoryData.map((h, i) => `
+                        <div class="bg-gray-50 rounded-xl p-4 border border-gray-200 relative pb-10">
+                            <p class="text-xs font-bold text-gray-500 uppercase mb-3"><i class="ph-bold ph-calendar-blank"></i> ${h.date}</p>
+                            <div class="grid grid-cols-2 gap-2 mb-3 text-sm">
+                                <div class="bg-white p-2 rounded border border-gray-100">
+                                    <p class="text-[10px] text-gray-400 font-bold uppercase">Rate (WPM)</p>
+                                    <p class="font-bold text-gray-800">${h.wpm}</p>
+                                </div>
+                                <div class="bg-white p-2 rounded border border-gray-100">
+                                    <p class="text-[10px] text-gray-400 font-bold uppercase">Word Rdg</p>
+                                    <p class="font-bold text-gray-800">${h.wordScore}% <span class="text-[10px] font-normal text-gray-500 block leading-tight">${h.wordProfile}</span></p>
+                                </div>
+                                <div class="bg-white p-2 rounded border border-gray-100 col-span-2">
+                                    <p class="text-[10px] text-gray-400 font-bold uppercase">Comprehension</p>
+                                    <p class="font-bold text-gray-800">${h.compScore}% <span class="text-xs font-normal text-gray-500 ml-1">(${h.compProfile})</span></p>
+                                </div>
+                            </div>
+                            <div class="w-full text-center py-1.5 rounded text-xs font-bold uppercase ${h.profile === 'Independent' ? 'bg-green-100 text-green-700' : h.profile === 'Instructional' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}">
+                                Overall: ${h.profile}
+                            </div>
+                            <button onclick="editPastAssessment(${i})" class="absolute bottom-2 left-2 right-2 text-[10px] font-bold bg-blue-100 hover:bg-blue-200 text-blue-700 py-1.5 rounded transition-colors text-center">
+                               <i class="ph-bold ph-pencil-simple"></i> Edit Assessment
+                            </button>
+                        </div>`).join('');
+                    });
+                }
             }
             
             if (viewId === 'readingTestView' && state.activeAssessment && state.activeAssessment.studentName) {
@@ -817,25 +847,39 @@
             
             let isDone = false;
             let timeout = setTimeout(() => {
-                if(!isDone) grid.innerHTML = `<div class="col-span-full text-center py-10 text-red-500 bg-red-50 rounded-xl border border-red-200 shadow-sm"><p class="font-bold text-lg mb-2">Connection Timeout</p><p class="text-sm text-red-600 mb-4">Google Sheets didn't respond. Please click <br/><b>Deploy -> New deployment</b><br/> in Apps Script, then refresh.</p><button onclick="fetchGrades()" class="px-6 py-2 bg-red-600 text-white rounded-xl font-bold shadow-md hover:bg-red-700 transition-colors">Retry Connection</button></div>`; 
+                if(!isDone) {
+                    isDone = true;
+                    grid.innerHTML = `<div class="col-span-full text-center py-10 text-red-500 bg-red-50 rounded-xl border border-red-200 shadow-sm"><p class="font-bold text-lg mb-2">Connection Timeout</p><p class="text-sm text-red-600 mb-4">Google Sheets didn't respond in time. This could be due to permission issues or a slow connection.</p><button onclick="fetchGrades()" class="px-6 py-2 bg-red-600 text-white rounded-xl font-bold shadow-md hover:bg-red-700 transition-colors">Retry Connection</button></div>`;
+                }
             }, 12000);
 
-            runGoogleScript('getAvailableGrades', [], (grades) => { 
-                isDone = true; clearTimeout(timeout);
-                state.grades = grades || []; renderGrades(); 
-                runGoogleScript('getPendingAssessments', [], (data) => {
-                    if (data && Array.isArray(data)) {
-                        const localActiveId = state.activeAssessment ? state.activeAssessment.id : null;
-                        state.pendingAssessments = data;
-                        if(localActiveId) { const match = state.pendingAssessments.find(a => a.id === localActiveId); if (match) Object.assign(state.activeAssessment, match); }
-                        updatePendingBadge(); if (document.getElementById('pendingView').classList.contains('active')) renderPending();
-                    }
+            try {
+                runGoogleScript('getAvailableGrades', [], (grades) => {
+                    if(isDone) return;
+                    isDone = true; clearTimeout(timeout);
+                    state.grades = grades || []; renderGrades();
+
+                    runGoogleScript('getPendingAssessments', [], (data) => {
+                        if (data && Array.isArray(data)) {
+                            const localActiveId = state.activeAssessment ? state.activeAssessment.id : null;
+                            state.pendingAssessments = data;
+                            if(localActiveId) { const match = state.pendingAssessments.find(a => a.id === localActiveId); if (match) Object.assign(state.activeAssessment, match); }
+                            updatePendingBadge(); if (document.getElementById('pendingView').classList.contains('active')) renderPending();
+                        }
+                    }, (err) => {
+                        console.error("Failed to load pending assessments:", err);
+                    });
+                }, (err) => {
+                    if(isDone) return;
+                    isDone = true; clearTimeout(timeout);
+                    let msg = err.message || err.toString();
+                    grid.innerHTML = `<div class="col-span-full text-center py-10 text-red-500 bg-red-50 rounded-xl border border-red-200"><p class="font-bold mb-2">Error loading grades</p><p class="text-xs text-red-400 mb-4">${msg}</p><button onclick="fetchGrades()" class="px-4 py-2 bg-red-600 text-white rounded-lg font-bold">Retry</button></div>`;
                 });
-            }, (err) => { 
+            } catch(e) {
+                if(isDone) return;
                 isDone = true; clearTimeout(timeout);
-                let msg = err.message || err.toString();
-                grid.innerHTML = `<div class="col-span-full text-center py-10 text-red-500 bg-red-50 rounded-xl border border-red-200"><p class="font-bold mb-2">Error loading grades</p><p class="text-xs text-red-400 mb-4">${msg}</p><button onclick="fetchGrades()" class="px-4 py-2 bg-red-600 text-white rounded-lg font-bold">Retry</button></div>`; 
-            });
+                grid.innerHTML = `<div class="col-span-full text-center py-10 text-red-500 bg-red-50 rounded-xl border border-red-200"><p class="font-bold mb-2">Critical Error</p><p class="text-xs text-red-400 mb-4">${e.message}</p><button onclick="fetchGrades()" class="px-4 py-2 bg-red-600 text-white rounded-lg font-bold">Retry</button></div>`;
+            }
         }
         
         function renderGrades() {
