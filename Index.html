@@ -1143,18 +1143,8 @@
             saveState(); navigateTo('comprehensionView');
         }
 
-        function getWordReadingLevel(score) { if (score >= 97) return "Independent"; if (score >= 90) return "Instructional"; return "Frustration"; }
-        function getComprehensionLevel(score) { if (score >= 80) return "Independent"; if (score >= 59) return "Instructional"; return "Frustration"; }
-        function getOverallProfile(wrLevel, compLevel) {
-            if (wrLevel === "Independent" && compLevel === "Independent") return "Independent";
-            if (wrLevel === "Independent" && compLevel === "Instructional") return "Instructional";
-            if (wrLevel === "Instructional" && compLevel === "Independent") return "Instructional";
-            if (wrLevel === "Instructional" && compLevel === "Instructional") return "Instructional";
-            if (wrLevel === "Instructional" && compLevel === "Frustration") return "Frustration";
-            if (wrLevel === "Frustration" && compLevel === "Instructional") return "Frustration";
-            if (wrLevel === "Frustration" && compLevel === "Frustration") return "Frustration";
-            return "Frustration"; 
-        }
+        <?!= getSharedFunctions() ?>
+
         function updateLabelStyle(elementId, level) {
             const el = document.getElementById(elementId); el.innerText = level;
             el.className = 'inline-block px-2 py-1 rounded-md text-[10px] font-bold uppercase mt-2 border ' + (level === "Independent" ? 'bg-green-900/50 text-green-300 border-green-700/50' : level === "Instructional" ? 'bg-yellow-900/50 text-yellow-300 border-yellow-700/50' : 'bg-red-900/50 text-red-300 border-red-700/50');
